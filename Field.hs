@@ -1,18 +1,13 @@
+{-# LANGUAGE TypeInType, ScopedTypeVariables, TypeApplications #-}
+
 module Field where
 
     import Data.Maybe
+    import Data.Proxy
+    import Data.Ratio
+    import GHC.TypeLits
 
-    data FiniteField = FiniteField {add::(FieldElement -> FieldElement -> FieldElement),
-                  addinv::(FieldElement -> FieldElement),
-                  mul::(FieldElement -> FieldElement -> FieldElement),
-                  mulinv::(FieldElement -> FieldElement),
-                  new::(Integer -> FieldElement)
-                  }
 
-    newtype FieldElement = FieldElement Integer deriving (Eq, Show, Read)
-
-    toInt :: FieldElement -> Integer
-    toInt (FieldElement x) = x
 
     gcdExt :: Integer -> Integer -> (Integer, Integer, Integer)
     gcdExt a 0 = (1, 0, a)
@@ -33,11 +28,44 @@ module Field where
     isPrime :: Integer -> Bool
     isPrime n = isPrimeLoop n 2
 
-    newFiniteField :: Integer -> FiniteField
-    newFiniteField n = FiniteField add addinv mul mulinv new
+    newtype FieldElem (n :: Nat) = FieldElem Integer
+
+    toInt :: forall n. KnownNat n => FieldElem n -> Integer
+    toInt (FieldElem x) = x
+
+    instance KnownNat n => Num (FieldElem n) where
+        FieldElem x + FieldElem y = FieldElem (mod (x + y) n)
+            where
+                n = natVal (Proxy :: Proxy n)
+        FieldElem x - FieldElem y = FieldElem (mod (x - y) n)
+            where
+                n = natVal (Proxy :: Proxy n)
+        FieldElem x * FieldElem y = FieldElem (mod (x * y) n)
+            where
+                n = natVal (Proxy :: Proxy n)
+        fromInteger x = FieldElem (mod x n)
+            where
+                n = natVal (Proxy :: Proxy n)
+        abs x = x
+        signum x = 1
+
+    instance KnownNat n => Show (FieldElem n) where
+        show (FieldElem x) = show x ++ "(mod " ++ show n ++ ")"
+            where
+                n = natVal (Proxy :: Proxy n)
+
+    instance KnownNat n => Read (FieldElem n) where
+        readsPrec _ input = [(FieldElem x,"")]
+            where
+                xstr = takeWhile (/= '(') input
+                x = read xstr :: Integer
+
+    instance KnownNat n => Eq (FieldElem n) where
+        FieldElem x == FieldElem y = x == y
+
+    (//) :: forall n. KnownNat n => FieldElem n -> FieldElem n -> FieldElem n
+    (//) (FieldElem x) (FieldElem y)
+        | y == 0 = error "Division by Zero"
+        | otherwise = FieldElem (x * modMulInv y n)
         where
-            add = (\x y -> FieldElement (mod (toInt x + toInt y) n) )
-            addinv = (\x -> FieldElement (mod (n - toInt x) n) )
-            mul = (\x y -> FieldElement (mod (toInt x * toInt y) n) )
-            mulinv = (\x -> FieldElement (mod (modMulInv (toInt x) n) n) )
-            new = (\x -> FieldElement x)
+            n = natVal (Proxy :: Proxy n)

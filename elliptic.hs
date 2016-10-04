@@ -10,7 +10,7 @@ import Field
 type BigField = FieldElem 3851
 
 bigField :: Integer -> FieldElem 3851
-bigField x = FieldElem x
+bigField x = FieldElem (mod x 3851)
 
 -- This is the type that holds the parameters for the elliptic curve itself
 data Curve = Curve {alpha::BigField, beta::BigField} deriving (Eq, Show)
@@ -101,20 +101,28 @@ pointPair (Point a b) = (toInt a, toInt b)
 
 -- This is the main function which asks for user input
 main = do
-    putStrLn "## Testing Curves ##"
+    putStrLn "## Elliptic Curve Diffie Hellman Key Exchange ##"
     let curve = Curve (bigField 324) (bigField 1287)
     let cmul = mulPoint curve
+    let testc = testPoint curve
     --uncomment below to view the elliptic curve we are working on
     --putStrLn $ "curve = " ++ formatCurve curve
-    let p = Point (bigField 920) (bigField 303)
+    let px = (bigField 920)
+    let py = (bigField 303)
+    let p = Point px py
     --uncomment below to view the point we start with
     --putStrLn $ "p = " ++ (show $ pointPair p)
+    --putStrLn $ "Testing point: " ++ (show $ testc p)
     putStrLn "Enter your secret number"
     my_str <- getLine
     let my_secret = read my_str :: Integer
+    let send = cmul my_secret p
+    --putStrLn $ "Testing point: " ++ (show $ testc send)
     putStrLn $ "Send this to your partner: "
-        ++ (show $ pointPair (cmul my_secret p))
+        ++ (show $ pointPair send)
     putStrLn "Put your partner's point here: "
     partner_point <- getLine
+    let final = cmul my_secret (parsePoint partner_point)
     putStrLn $ "Final Shared Secret (Keep Secret) = "
-        ++ (show $ pointPair (cmul my_secret (parsePoint partner_point)))
+        ++ (show $ pointPair final)
+    --putStrLn $ "Testing point: " ++ (show $ testc final)
